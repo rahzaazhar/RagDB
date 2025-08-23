@@ -1,0 +1,8 @@
+python-dotenv
+google-genai
+SQLAlchemy
+psycopg2-binary
+pandas
+langchain-community
+langgraph
+langchain[google-genai]
