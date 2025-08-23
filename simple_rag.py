@@ -1,5 +1,4 @@
 import os
-import dotenv
 from langchain_community.utilities import SQLDatabase
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
@@ -8,26 +7,8 @@ from typing_extensions import TypedDict
 from typing import Annotated
 from langgraph.graph import START, StateGraph
 
-dotenv.load_dotenv()
-DB_URI = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@localhost:5432/{os.getenv('DB_NAME')}"
-db = SQLDatabase.from_uri(DB_URI)
-print(db.run("SELECT * FROM book_store_one LIMIT 5;"))
-print(db.table_info)
 
-class State(TypedDict):
-    question: str
-    query: str
-    result: str
-    answer: str
-
-class QueryOutput(TypedDict):
-    """Generated SQL query."""
-
-    query: Annotated[str, ..., "Syntactically valid SQL query."]
-
-llm = init_chat_model("gemini-2.5-flash", model_provider="google_genai")
-
-system_message = """
+SYSTEM_MESSAGE = """
 Given an input question, create a syntactically correct {dialect} query to
 run to help find the answer. Unless the user specifies in his question a
 specific number of examples they wish to obtain, always limit your query to
@@ -45,55 +26,71 @@ Only use the following tables:
 {table_info}
 """
 
-user_prompt = "Question: {input}"
+USER_PROMPT = "Question: {input}"
 
-query_prompt_template = ChatPromptTemplate(
-    [("system", system_message), ("user", user_prompt)]
-)
+class State(TypedDict):
+    question: str
+    query: str
+    result: str
+    answer: str
 
-for message in query_prompt_template.messages:
-    message.pretty_print()
+class QueryOutput(TypedDict):
+    """Generated SQL query."""
+    query: Annotated[str, ..., "Syntactically valid SQL query."]
 
-def query_construction(state: State):
-    prompt = query_prompt_template.invoke(
-        {
-            "input": state["question"],
-            "dialect": db.dialect,
-            "top_k": 5,
-            "table_info": db.table_info
-        }
-    )
+class RAGSystem:
+    def __init__(self, db_uri, model="gemini-1.5-flash"):
+        self.db = SQLDatabase.from_uri(db_uri)
+        self.llm = init_chat_model(model, model_provider='google_genai')
+        self.query_prompt_template = self._create_query_prompt_template()
+        self.graph = self._build_graph()
 
-    structured_llm = llm.with_structured_output(QueryOutput)
-    result = structured_llm.invoke(prompt)
-    return {"query": result["query"]}
+    def _create_query_prompt_template(self):
+        
+        return ChatPromptTemplate.from_messages(
+            [
+                ("system", SYSTEM_MESSAGE),
+                ("user", USER_PROMPT),
+            ]
+        )
 
-def query_execution(state: State):
-    """Execute SQL query."""
-    execute_query_tool = QuerySQLDatabaseTool(db=db)
-    return {"result": execute_query_tool.invoke(state["query"])}
+    def _build_graph(self):
+        graph_builder = StateGraph(State).add_sequence(
+            [self.query_construction, self.query_execution, self.generate_answer]
+        )
+        graph_builder.add_edge(START, "query_construction")
+        return graph_builder.compile()
 
-def generate_answer(state: State):
-    """Answer question using retrieved information as context."""
-    prompt = (
-        "Given the following user question, corresponding SQL query, "
-        "and SQL result, answer the user question.\n\n"
-        f"Question: {state['question']}\n"
-        f"SQL Query: {state['query']}\n"
-        f"SQL Result: {state['result']}"
-    )
-    response = llm.invoke(prompt)
-    return {"answer": response.content}
+    def query_construction(self, state: State):
+        prompt = self.query_prompt_template.invoke(
+            {
+                "input": state["question"],
+                "dialect": self.db.dialect,
+                "top_k": 5,
+                "table_info": self.db.table_info,
+            }
+        )
+        structured_llm = self.llm.with_structured_output(QueryOutput)
+        result = structured_llm.invoke(prompt)
+        return {"query": result["query"]}
 
+    def query_execution(self, state: State):
+        """Execute SQL query."""
+        execute_query_tool = QuerySQLDatabaseTool(db=self.db)
+        return {"result": execute_query_tool.invoke(state["query"])}
 
+    def generate_answer(self, state: State):
+        """Answer question using retrieved information as context."""
+        prompt = (
+            "Given the following user question, corresponding SQL query, "
+            "and SQL result, answer the user question.\n\n"
+            f"Question: {state['question']}\n"
+            f"SQL Query: {state['query']}\n"
+            f"SQL Result: {state['result']}"
+        )
+        response = self.llm.invoke(prompt)
+        return {"answer": response.content}
 
-graph_builder = StateGraph(State).add_sequence(
-    [query_construction, query_execution, generate_answer]
-)
-graph_builder.add_edge(START, "query_construction")
-graph = graph_builder.compile()
-
-for step in graph.stream(
-    {"question": "How many unique bookstores are present in the database?"}, stream_mode="updates"
-):
-    print(step)
+    def run(self, question: str):
+        result = self.graph.invoke({"question": question})
+        return result["answer"]
