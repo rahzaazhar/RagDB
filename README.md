@@ -21,15 +21,31 @@ The project is structured as follows:
 ### Data Generation
 We use the Amazon Popular Books dataset as the base catalog and synthesize two distinct bookstore datasets by applying randomized schema variations (different column names, missing fields, additional attributes). To enrich the records, we generate concise book summaries using a generative model (e.g., Gemini), creating semantically richer data that better supports retrieval-augmented generation (RAG) and natural language querying.
 
-To run the data generator, run the following command:
+To create your own bookstore datasets, run the following command:
 
 ```bash
 python data_generator.py --bookstore_name salims --num_books 2 --csv_path ./Amazon_popular_books_dataset.csv
 ```
 
-### Data Ingestion
+two books store datasets bookstore_one.csv and bookstore_two.csv are created in the data directory for the purpose of this demo.
+## System Design
+### ML System Design
+### Overall System Design
+## Evaluation
 
-To populate the DBs, run the following command:
+### Eval Data
+To evaluate the RAG system a set of question and answer pairs were sythtically created using the geimini cli and manually verified for correctness. The type of questions covered are classified into the following types:
+single-hop: are simple retrival look up type questions that can be answered by looking up a single fact in the database.
+multi-hop: Can the system combine multiple facts across docs/rows/tables?
+faithfulnesss: questions that require the system to provide a faithful answer to the question and not hallucinated info.
+aggregation: questions that require the system to provide an aggregated answer to the question(Counting, Group By, etc).
 
-```bash
-python populate_db.py --bookstore_name salims --num_books 2 --csv_path ./Amazon_popular_books_dataset.csv
+For each type 5 question answer pairs were created and the system was evaluated on them.
+the following prompt was used to generate the eval set: the eval data can be found in data/eval_data.jsonl
+```
+ I am building a rag system for a book store front, this front has 2 book stores each book store has a collection of books and their own schema. @data/bookstore_one.csv and @data/bookstore_two.csv contain the data and schema for each book store. I want you to generate question, answer pairs for four types of questions grounded in the data. 1. single-hop:are simple retrival look up type questions that can be answered by looking up a single fact in the database. 2. multi-hop: Can the system combine multiple facts across docs/rows/tables? 3.questions that require the system to provide a faithful answer to the question and not hallucinated info. 4. aggregation: questions that require the system to provide an aggregated answer to the question(Counting, Group By, etc). For each type of question generate 5 question answer pairs also include the type of question. Give me the data in jsonl format. an example of how the data could look like is this {"question":"eragon book available in your store front?", "answer":"No we donot have eragon in any of our collections", "type":"faithfulness"}
+```
+### Evaluation
+### Demo
+
+

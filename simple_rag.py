@@ -16,11 +16,12 @@ at most {top_k} results. You can order the results by a relevant column to
 return the most interesting examples in the database.
 
 Never query for all the columns from a specific table, only ask for a the
-few relevant columns given the question.
+few relevant columns given the question. Always use quotes around column names.
 
 Pay attention to use only the column names that you can see in the schema
 description. Be careful to not query for columns that do not exist. Also,
-pay attention to which column is in which table.
+pay attention to which column is in which table. If requested information is
+not present in the database say so to the user.
 
 Only use the following tables:
 {table_info}
@@ -39,7 +40,7 @@ class QueryOutput(TypedDict):
     query: Annotated[str, ..., "Syntactically valid SQL query."]
 
 class RAGSystem:
-    def __init__(self, db_uri, model="gemini-1.5-flash"):
+    def __init__(self, db_uri, model="gemini-2.5-flash"):
         self.db = SQLDatabase.from_uri(db_uri)
         self.llm = init_chat_model(model, model_provider='google_genai')
         self.query_prompt_template = self._create_query_prompt_template()
@@ -82,10 +83,14 @@ class RAGSystem:
     def generate_answer(self, state: State):
         """Answer question using retrieved information as context."""
         prompt = (
-            "Given the following user question, corresponding SQL query, "
-            "and SQL result, answer the user question.\n\n"
+            "You are a helpful assistant that answers users inquiries about the books available in different bookstores."
+            "Given the following user question, corresponding SQL query, database schema information"
+            "and SQL result as context, answer the user question. if the information in the context is strictly"
+            "not enough to answer the users question give the user a reason why the information is not enough to answer the users question."
+            "The end user does not need to know about how the information was retrieved or how the query was generated. The user only needs to know the answer to his question or why it was not met.\n\n"
             f"Question: {state['question']}\n"
             f"SQL Query: {state['query']}\n"
+            f"Database Schema Information: {self.db.table_info}\n"
             f"SQL Result: {state['result']}"
         )
         response = self.llm.invoke(prompt)
