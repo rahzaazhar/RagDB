@@ -48,4 +48,10 @@ the following prompt was used to generate the eval set: the eval data can be fou
 ### Evaluation
 ### Demo
 
+tasks
+1. write and test eval script, update readme [HP] [1 hour]
+2. fill in system design section [HP] [30 minutes]
+3. dockerize the system and test it [LP] [1 hour]
+4. record demo video [LP] [30 minutes]
+5. improve the system via code + prompt engineering [MP] [2 hours] 
 
