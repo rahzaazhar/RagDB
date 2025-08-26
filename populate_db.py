@@ -8,9 +8,9 @@ import pandas as pd
 
 dotenv.load_dotenv()
 
-STORE_ONE_CSV_PATH = "bookstore_one.csv"
-STORE_TWO_CSV_PATH = "bookstore_two.csv"
-DB_URI = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@localhost:5432/{os.getenv('DB_NAME')}"
+STORE_ONE_CSV_PATH = "data/bookstore_one.csv"
+STORE_TWO_CSV_PATH = "data/bookstore_two.csv"
+DB_URI = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:5432/{os.getenv('DB_NAME')}"
 engine = create_engine(DB_URI)
 
 Session = sessionmaker(bind=engine)

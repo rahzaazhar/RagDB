@@ -1,35 +1,110 @@
-## Project Setup
+# Bookstore RAG Application
 
-### Project Dependencies
+## Overview
 
-To run the project, you will need to install the following dependencies:
+This project is a Retrieval-Augmented Generation (RAG) application for a bookstore. It allows users to ask questions in natural language about the bookstore's inventory, and it uses a Large Language Model (LLM) to translate these questions into SQL queries, retrieve the relevant information from a PostgreSQL database, and provide a user-friendly answer.
 
-```bash
-pip install -r requirements.txt
+## Features
+
+- **Natural Language Queries**: Ask questions about books in plain English.
+- **SQL Generation**: Automatically converts natural language questions into SQL queries.
+- **Dockerized**: The entire application and database can be run with a single command using Docker Compose.
+- **Extensible**: The system can be extended to support other models and data sources.
+- **Evaluation Framework**: Includes a framework for evaluating the performance of the RAG system.
+
+## Technology Stack
+
+- **Frontend**: HTML, CSS, JavaScript
+- **Backend**: Python, FastAPI
+- **Database**: PostgreSQL
+- **Containerization**: Docker, Docker Compose
+- **LLM**: Google Gemini
+- **Orchestration**: LangChain
+- **Tracing and Monitoring**: LangSmith (optional but highly recommended)
+
+## Getting Started
+
+### Prerequisites
+
+- Docker
+- Docker Compose
+- Python 3.9+
+- `pip`
+
+### Configuration
+
+Before running the application, you need to configure your environment variables. Create a file named `.env` in the root of the project.
+
+```
+# .env
+
+# Database Configuration
+DB_HOST=localhost
+DB_USER=user
+DB_PASSWORD=password
+DB_NAME=bookstore
+
+# Google API Key
+GOOGLE_API_KEY=your_google_api_key
+
+# LangSmith Tracing (Optional)
+LANGSMITH_TRACING=false
+LANGSMITH_ENDPOINT="https://api.smith.langchain.com"
+LANGSMITH_PROJECT=your_langsmith_project
+LANGSMITH_API_KEY=your_langsmith_api_key
 ```
 
-### Project Structure
+**Note on `DB_HOST`**: The value of `DB_HOST` depends on how you run the application. See the instructions below.
 
-The project is structured as follows:
+### Running the Application
 
-- `data_generator.py`: Generates synthetic bookstore datasets using the Amazon Popular Books dataset as the base catalog.
-- `populate_db.py`: Populates the DBs with the generated datasets.
-- `Gemini_Books.json`: Contains the generated datasets in JSON format.
+#### Option 1: Docker (Recommended)
 
-## Data Setup
+This is the recommended way to run the application. It will build the application image and run both the application and the database in Docker containers.
 
-### Data Generation
-We use the Amazon Popular Books dataset as the base catalog and synthesize two distinct bookstore datasets by applying randomized schema variations (different column names, missing fields, additional attributes). To enrich the records, we generate concise book summaries using a generative model (e.g., Gemini), creating semantically richer data that better supports retrieval-augmented generation (RAG) and natural language querying.
+1.  **Configure `.env` for Docker**:
+    In your `.env` file, either **comment out or remove** the `DB_HOST` variable. The `docker-compose.yml` file will automatically set it to `db`, which is the correct hostname for the container network.
 
-To create your own bookstore datasets, run the following command:
+2.  **Build and run the application**:
+    ```bash
+    docker-compose up --build
+    ```
+    The `--build` flag is only necessary the first time you run the application or if you have made changes to the code. The application will be available at `http://localhost:8000`. Note the responses take some time because of rate limit issues.
 
-```bash
-python data_generator.py --bookstore_name salims --num_books 2 --csv_path ./Amazon_popular_books_dataset.csv
-```
+3.  **Stop and clean up**:
+    When you are finished, use the following command to stop the containers and remove the database data:
+    ```bash
+    docker-compose down --volumes
+    ```
 
-two books store datasets bookstore_one.csv and bookstore_two.csv are created in the data directory for the purpose of this demo.
+#### Option 2: Local Development
 
-## System Architecture 
+This approach runs the Python application directly on your host machine, but it still uses Docker to run the PostgreSQL database.
+
+1.  **Install Python dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  **Configure `.env` for Local Development**:
+    In your `.env` file, make sure `DB_HOST` is set to `localhost`:
+    ```
+    DB_HOST=localhost
+    ```
+
+3.  **Start the database**:
+    ```bash
+    docker-compose up -d db
+    ```
+    This will start only the `db` service in the background.
+
+4.  **Run the application**:
+    ```bash
+    python app.py
+    ```
+
+
+## System Architecture
 
 The system enables natural language interaction with a database by combining query translation, SQL generation, and language model reasoning.
 
@@ -51,43 +126,29 @@ The system enables natural language interaction with a database by combining que
 6. **Answer**
    The final answer is presented to the user in a clear, natural language form.
 
-
 <p align="center">
-  <img src="images/system_design_small.png" alt="Alt text" width="600">
+  <img src="images/system_design_small.png" alt="System Architecture Diagram" width="600">
 </p>
 
 ## Evaluation
 
 ### Eval Data
-To evaluate the RAG system a set of question and answer pairs were sythtically created using the geimini cli and manually verified for correctness the purpose of this eexercise is to faithfully have coverage over the types of questions that can be asked of the system. The type of questions covered are classified into the following types:
-1. single-hop: are simple retrival look up type questions that can be answered by looking up a single fact in the database.
-2. multi-hop: Can the system combine multiple facts across docs/rows/tables?
-3. faithfulnesss: questions that require the system to provide a faithful answer to the question and not hallucinated info.
-4. aggregation: questions that require the system to provide an aggregated answer to the question(Counting, Group By, etc).
+To evaluate the RAG system, a set of question and answer pairs were synthetically created and manually verified for correctness. The goal is to have coverage over the types of questions that can be asked of the system. The questions are classified into the following types:
 
-For each type 5 question answer pairs were created and the system was evaluated on them.
-the following prompt was used to generate the eval set: the eval data can be found in data/eval_data.jsonl
-```
- I am building a rag system for a book store front, this front has 2 book stores each book store has a collection of books and their own schema. @data/bookstore_one.csv and @data/bookstore_two.csv contain the data and schema for each book store. I want you to generate question, answer pairs for four types of questions grounded in the data. 1. single-hop:are simple retrival look up type questions that can be answered by looking up a single fact in the database. 2. multi-hop: Can the system combine multiple facts across docs/rows/tables? 3.questions that require the system to provide a faithful answer to the question and not hallucinated info. 4. aggregation: questions that require the system to provide an aggregated answer to the question(Counting, Group By, etc). For each type of question generate 5 question answer pairs also include the type of question. Give me the data in jsonl format. an example of how the data could look like is this {"question":"eragon book available in your store front?", "answer":"No we donot have eragon in any of our collections", "type":"faithfulness"}
-```
+-   **single-hop**: Simple retrieval look-up questions.
+-   **multi-hop**: Questions that require combining multiple facts across tables or rows.
+-   **faithfulness**: Questions that require the system to provide a faithful answer and not hallucinate information.
+-   **aggregation**: Questions that require an aggregated answer (e.g., COUNT, GROUP BY).
+
 ### Evaluators
-There are many ways to evaluate the effectiveness of a llm system depending on the task(chat, RAG etc) at hand, if the output is verifiable or not (i.e we have a ground truth or not) and if the review is manual(human review) or automatic(unit tests and llm as a judge). In our case of RAG over a database we have reference answers grounded in the database and we use the llm as a judge to evaluate system responses with the reference output. We mainly focus on two aspect to evaluate:
-1. Correctness:  Measure "how similar/correct is the RAG chain answer, relative to a ground-truth answer"
-2. Relevance: Measures "how relevant is the RAG chain answer, relative to the question"
+We use an LLM as a judge to evaluate the system's responses against the reference answers. We focus on two main aspects:
 
-The prompts for correctness and relevance are found in evaluation_prompts.py. To run system evaluation on our eval data run the following command:
+1.  **Correctness**: Measures how similar the generated answer is to the ground-truth answer.
+2.  **Relevance**: Measures how relevant the generated answer is to the question.
 
-```python
+The prompts for correctness and relevance are found in `evaluation_prompts.py`. To run the system evaluation, use the following command:
+
+```bash
 python evaluation.py
 ```
-
-Note: we are using gemini-2.5-flash in all our evaluations as it has the best rate limits for the free tier, if you want to use another model you can change the model in evaluation.py. Also the project only supports google models but can be easily extended to support other models. 
-### Demo
-
-tasks
-1. write and test eval script, update readme [HP] [1 hour]
-2. fill in system design section [HP] [30 minutes]
-3. dockerize the system and test it [LP] [1 hour]
-4. record demo video [LP] [30 minutes]
-5. improve the system via code + prompt engineering [MP] [2 hours] 
 

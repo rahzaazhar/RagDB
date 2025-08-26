@@ -8,7 +8,7 @@ from starlette.staticfiles import StaticFiles
 
 dotenv.load_dotenv()
 
-DB_URI = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@localhost:5432/{os.getenv('DB_NAME')}"
+DB_URI = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:5432/{os.getenv('DB_NAME')}"
 rag_system = RAGSystem(DB_URI)
 
 app = FastAPI()
