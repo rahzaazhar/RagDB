@@ -69,7 +69,7 @@ This is the recommended way to run the application. It will build the applicatio
     ```bash
     docker-compose up --build
     ```
-    The `--build` flag is only necessary the first time you run the application or if you have made changes to the code. The application will be available at `http://localhost:8000`. Note the responses take some time because of rate limit issues.
+    The `--build` flag is only necessary the first time you run the application or if you have made changes to the code. The application will be available at `http://localhost:8000`. Note that the initial response may take some time due to model rate limits.
 
 3.  **Stop and clean up**:
     When you are finished, use the following command to stop the containers and remove the database data:
@@ -112,16 +112,16 @@ The system enables natural language interaction with a database by combining que
    The process begins with a natural language query from the user (e.g., *“Show me the books published by 'Amazon' that have a rating of 4.8 or higher.”*).
 
 2. **Query Translation**
-   The system uses an LLM to interprets the user’s intent by identifying entities and conditions to ensure the query is semantically understood and remove any ambiguities.
+   The system uses an LLM to interpret the user’s intent by identifying entities and conditions to ensure the query is semantically understood and to remove any ambiguities.
 
 3. **Query Construction**
-   The system uses an LLM by givig it a persosna of an expert sql operator via instructions to convert the interpreted intent into an executable SQL query, For example, it might generate a `SELECT` statement that groups books by genre. Additionally the LLM is also given the schema of the database to ensure the query is valid. In our case since we are really with only two tables dumping the schema in the context of the LLM is okay. In cases where the schema is large we have to store the schema in a vector store and let the model dynamically select the schema based on user query. 
+   The system uses an LLM by giving it a persona of an expert SQL operator via instructions to convert the interpreted intent into an executable SQL query. For example, it might generate a `SELECT` statement that groups books by genre. Additionally, the LLM is also given the schema of the database to ensure the query is valid. In our case, since we are dealing with only two tables, dumping the schema into the LLM's context is acceptable. In cases where the schema is large, we would need to store it in a vector store and let the model dynamically select the relevant schema based on the user's query.
 
 4. **SQL Executor**
-   The generated SQL query is executed against the database and ensures safe execution. The executor fetches structured results, such as tables or numerical values.
+   The generated SQL query is executed against the database, which ensures safe execution. The executor fetches structured results, such as tables or numerical values.
 
 5. **Generation**
-   Since raw SQL results are not user-friendly, the LLM reformulates the results into natural language. Here a different persona based on the end user experince is given to the LLM to generate a more user-friendly response. In this case the persona is a helpful assistant that answers users inquiries about the books available in a book store front. 
+   Since raw SQL results are not user-friendly, the LLM reformulates the results into natural language. Here, a different persona based on the end-user experience is given to the LLM to generate a more user-friendly response. In this case, the persona is a helpful assistant that answers user inquiries about the books available in the bookstore.
 
 6. **Answer**
    The final answer is presented to the user in a clear, natural language form.
@@ -133,12 +133,12 @@ The system enables natural language interaction with a database by combining que
 ## Evaluation
 
 ### Eval Data
-To evaluate the RAG system, a set of question and answer pairs were synthetically created and manually verified for correctness. The goal is to have coverage over the types of questions that can be asked of the system. The questions are classified into the following types:
+To evaluate the RAG system, a set of question-and-answer pairs were synthetically created and manually verified for correctness. The goal is to have faithful coverage over the types of questions that can be asked of the system. The questions are classified into the following types:
 
--   **single-hop**: Simple retrieval look-up questions.
--   **multi-hop**: Questions that require combining multiple facts across tables or rows.
--   **faithfulness**: Questions that require the system to provide a faithful answer and not hallucinate information.
--   **aggregation**: Questions that require an aggregated answer (e.g., COUNT, GROUP BY).
+-   **Single-hop**: Simple retrieval look-up questions.
+-   **Multi-hop**: Questions that require combining multiple facts across tables or rows.
+-   **Faithfulness**: Questions that require the system to provide a faithful answer and not hallucinate information.
+-   **Aggregation**: Questions that require an aggregated answer (e.g., COUNT, GROUP BY).
 
 ### Evaluators
 We use an LLM as a judge to evaluate the system's responses against the reference answers. We focus on two main aspects:
