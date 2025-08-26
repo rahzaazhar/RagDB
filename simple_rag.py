@@ -6,7 +6,13 @@ from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
 from typing_extensions import TypedDict
 from typing import Annotated
 from langgraph.graph import START, StateGraph
+from langchain_core.rate_limiters import InMemoryRateLimiter
 
+rate_limiter = InMemoryRateLimiter(
+    requests_per_second=0.1,  # <-- Super slow! We can only make a request once every 10 seconds!!
+    check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
+    max_bucket_size=10,  # Controls the maximum burst size.
+)
 
 SYSTEM_MESSAGE = """
 Given an input question, create a syntactically correct {dialect} query to
@@ -20,8 +26,7 @@ few relevant columns given the question. Always use quotes around column names.
 
 Pay attention to use only the column names that you can see in the schema
 description. Be careful to not query for columns that do not exist. Also,
-pay attention to which column is in which table. If requested information is
-not present in the database say so to the user.
+pay attention to which column is in which table.
 
 Only use the following tables:
 {table_info}
@@ -42,7 +47,7 @@ class QueryOutput(TypedDict):
 class RAGSystem:
     def __init__(self, db_uri, model="gemini-2.5-flash"):
         self.db = SQLDatabase.from_uri(db_uri)
-        self.llm = init_chat_model(model, model_provider='google_genai')
+        self.llm = init_chat_model(model, model_provider='google_genai', rate_limiter=rate_limiter)
         self.query_prompt_template = self._create_query_prompt_template()
         self.graph = self._build_graph()
 

@@ -6,6 +6,13 @@ from simple_rag import RAGSystem
 from langchain.chat_models import init_chat_model
 from typing_extensions import Annotated, TypedDict
 from evaluation_prompts import correctness_instructions, relevance_instructions
+from langchain_core.rate_limiters import InMemoryRateLimiter
+
+rate_limiter = InMemoryRateLimiter(
+    requests_per_second=0.1,  # <-- Super slow! We can only make a request once every 10 seconds!!
+    check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
+    max_bucket_size=10,  # Controls the maximum burst size.
+)
 
 load_dotenv()
 
@@ -16,7 +23,7 @@ DB_URI = f"postgresql+psycopg2://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD'
 
 
 client = Client()
-llm_as_judge = init_chat_model(model, model_provider='google_genai')
+llm_as_judge = init_chat_model(model, model_provider='google_genai', rate_limiter=rate_limiter)
 rag_system = RAGSystem(DB_URI, model)
 
 
@@ -88,11 +95,11 @@ def eval():
     target,
     data=dataset_name,
     evaluators=[correctness, relevance],
-    experiment_prefix="rag-doc-relevance",
-    metadata={"version": "LCEL context, gemini-2.5-flash"},
+    experiment_prefix="rag-doc-relevance-gemini-2.5-flash-lite",
+    metadata={"version": "LCEL context, gemini-2.5-flash-lite"},
     )
     experiment_results = experiment_results.to_pandas()
     experiment_results.to_csv("eval_results.csv")
-    
+
 if __name__ == "__main__":
     eval()
