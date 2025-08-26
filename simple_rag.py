@@ -36,6 +36,7 @@ USER_PROMPT = "Question: {input}"
 
 class State(TypedDict):
     question: str
+    rewritten_question: str
     query: str
     result: str
     answer: str
@@ -62,15 +63,36 @@ class RAGSystem:
 
     def _build_graph(self):
         graph_builder = StateGraph(State).add_sequence(
-            [self.query_construction, self.query_execution, self.generate_answer]
+            [self.query_translation, self.query_construction, self.query_execution, self.generate_answer]
         )
-        graph_builder.add_edge(START, "query_construction")
+        graph_builder.add_edge(START, "query_translation")
         return graph_builder.compile()
 
+    def query_translation(self, state: State):
+        prompt = (
+            "You are an assistant that reformulates natural language questions into clear, unambiguous queries "
+            "that align with the database schema. "
+            "Your task is to rewrite the user’s question so that it is easier to translate into a SQL query. "
+            "Follow these rules:\n"
+            "1. Remove ambiguity by specifying entities, columns, or relationships explicitly when possible.\n"
+            "2. Use the provided database schema to guide the reformulation — prefer column/table names from the schema.\n"
+            "3. If the question is vague (e.g., 'recent sales'), clarify it using standard interpretations (e.g., 'sales ordered by date descending').\n"
+            "4. Keep the reformulated question concise, formal, and focused only on information retrievable from the schema.\n"
+            "5. Do not generate SQL. Only rewrite the question.\n\n"
+            f"User Question: {state['question']}\n"
+            f"Database Schema:\n{self.db.table_info}\n\n"
+            "Rewritten Question:"
+        )
+
+        
+        
+        response = self.llm.invoke(prompt)
+        return {"rewritten_question": response.content}
+        
     def query_construction(self, state: State):
         prompt = self.query_prompt_template.invoke(
             {
-                "input": state["question"],
+                "input": state["rewritten_question"],
                 "dialect": self.db.dialect,
                 "top_k": 5,
                 "table_info": self.db.table_info,
